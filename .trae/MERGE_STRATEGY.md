@@ -40,7 +40,11 @@ git push origin custom
 
 | 文件路径 | 用途 | 状态 |
 |----------|------|------|
-| （待填写） | | 新增 |
+| `pkg/sunnynet/Resource/nfapi/dll/win32/nfapi.dll` | Windows 32位网络驱动DLL（从Go模块缓存复制） | 新增 |
+| `pkg/sunnynet/Resource/nfapi/dll/x64/nfapi.dll` | Windows 64位网络驱动DLL（从Go模块缓存复制） | 新增 |
+| `.trae/MERGE_STRATEGY.md` | 合并策略文档 | 新增 |
+
+**说明**：上游 `.gitignore` 忽略了 `*.dll` 文件，导致源码构建时缺少这些 DLL。我们从 Go 模块缓存复制到本地，解决 Windows 源码构建问题。
 
 ### 3.2 修改文件（可能冲突）
 
@@ -48,7 +52,14 @@ git push origin custom
 
 | 文件路径 | 修改内容摘要 | 冲突策略 | 状态 |
 |----------|--------------|----------|------|
-| （待填写） | | 待确认 | |
+| `internal/database/database.go` | 将 SQLite 驱动从 `mattn/go-sqlite3` 改为 `modernc.org/sqlite`（纯Go实现） | **保留本地** | 已修改 |
+| `go.mod` | 移除 `mattn/go-sqlite3` 依赖，避免与 `glebarez/sqlite` 符号冲突 | **人工确认** | 已修改 |
+| `go.sum` | 随 go.mod 变化自动更新 | **自动处理** | 已修改 |
+
+**说明**：
+- 上游同时使用了 `mattn/go-sqlite3`（CGO）和 `glebarez/sqlite`（纯Go），在 Windows MinGW 环境下会产生 SQLite 符号冲突
+- 我们统一使用纯 Go SQLite 驱动，解决 Windows 源码构建问题
+- 如果上游更新 go.mod，需要人工确认是否保留我们的修改
 
 ### 3.3 配置文件（自动保留本地）
 
@@ -168,12 +179,12 @@ git merge --abort
 
 > 随着定制化开发进行，请及时更新以下内容：
 
-- [ ] 第3.1节：新增文件列表
-- [ ] 第3.2节：修改文件列表及策略
+- [x] 第3.1节：新增文件列表
+- [x] 第3.2节：修改文件列表及策略
 - [ ] 第6节：依赖项目信息
 
 ---
 
-*文档版本: 1.0*
+*文档版本: 1.1*
 *创建日期: 2026-06-15*
-*最后更新: 2026-06-15*
+*最后更新: 2026-06-17*

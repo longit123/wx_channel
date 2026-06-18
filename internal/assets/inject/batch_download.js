@@ -18,6 +18,8 @@ window.__wx_batch_download_manager__ = {
   stopSignal: false, // 取消下载信号
   forceRedownload: false, // 强制重新下载
   abortController: null, // 当前请求的 AbortController
+  sortBy: 'likeCount', // 排序字段: likeCount, favCount, commentCount, readCount, createtime
+  sortOrder: 'desc', // 排序顺序: asc, desc
 
   // 设置视频数据
   setVideos: function (videos, title) {
@@ -25,35 +27,95 @@ window.__wx_batch_download_manager__ = {
     this.selectedItems = {};
     this.currentPage = 1;
     if (title) this.title = title;
+    // 初始加载时按当前排序规则排序
+    this.videos = this.getSortedVideos();
     console.log('[批量下载] 设置视频数据，共', this.videos.length, '个');
   },
 
   // 追加视频数据（去重）
-  appendVideos: function (videos) {
+  appendVideos: function (videos, options) {
+    options = options || {};
     var existingIds = {};
     this.videos.forEach(function (v) {
       existingIds[v.id] = true;
     });
 
-    var newCount = 0;
-    for (var i = 0; i < videos.length && this.videos.length < this.maxItems; i++) {
+    var newVideos = [];
+    for (var i = 0; i < videos.length && this.videos.length + newVideos.length < this.maxItems; i++) {
       var video = videos[i];
       if (video.id && !existingIds[video.id]) {
-        this.videos.push(video);
+        newVideos.push(video);
         existingIds[video.id] = true;
-        newCount++;
       }
     }
 
-    console.log('[批量下载] 追加', newCount, '个视频，总计:', this.videos.length);
-    return newCount;
+    // 如果是首次加载（videos为空）或强制排序，则合并后排序
+    // 否则直接追加到末尾，保持用户体验连贯
+    if (this.videos.length === 0 || options.sortImmediately) {
+      this.videos = this.videos.concat(newVideos);
+      // 首次加载或强制排序时，按当前排序规则排序
+      this.videos = this.getSortedVideos();
+    } else {
+      // 追加模式：直接添加到末尾，不重新排序
+      this.videos = this.videos.concat(newVideos);
+    }
+
+    console.log('[批量下载] 追加', newVideos.length, '个视频，总计:', this.videos.length);
+    return newVideos.length;
+  },
+
+  // 获取排序后的视频列表
+  getSortedVideos: function () {
+    var self = this;
+    var sorted = this.videos.slice(); // 复制数组
+
+    sorted.sort(function (a, b) {
+      var valueA, valueB;
+
+      // 获取排序字段的值
+      switch (self.sortBy) {
+        case 'likeCount':
+          valueA = a.likeCount || (a.objectDesc && a.objectDesc.likeCount) || 0;
+          valueB = b.likeCount || (b.objectDesc && b.objectDesc.likeCount) || 0;
+          break;
+        case 'favCount':
+          valueA = a.favCount || (a.objectDesc && a.objectDesc.favCount) || 0;
+          valueB = b.favCount || (b.objectDesc && b.objectDesc.favCount) || 0;
+          break;
+        case 'commentCount':
+          valueA = a.commentCount || (a.objectDesc && a.objectDesc.commentCount) || 0;
+          valueB = b.commentCount || (b.objectDesc && b.objectDesc.commentCount) || 0;
+          break;
+        case 'readCount':
+          valueA = a.readCount || (a.objectDesc && a.objectDesc.readCount) || 0;
+          valueB = b.readCount || (b.objectDesc && b.objectDesc.readCount) || 0;
+          break;
+        case 'createtime':
+          valueA = a.createtime || 0;
+          valueB = b.createtime || 0;
+          break;
+        default:
+          valueA = a.likeCount || (a.objectDesc && a.objectDesc.likeCount) || 0;
+          valueB = b.likeCount || (b.objectDesc && b.objectDesc.likeCount) || 0;
+      }
+
+      // 排序
+      if (self.sortOrder === 'asc') {
+        return valueA - valueB;
+      } else {
+        return valueB - valueA;
+      }
+    });
+
+    return sorted;
   },
 
   // 获取当前页的视频
   getCurrentPageVideos: function () {
+    var sortedVideos = this.getSortedVideos();
     var start = (this.currentPage - 1) * this.pageSize;
     var end = start + this.pageSize;
-    return this.videos.slice(start, end);
+    return sortedVideos.slice(start, end);
   },
 
   // 获取总页数
@@ -161,8 +223,23 @@ function __show_batch_download_ui__(videos, title) {
     '</div>' +
     '</div>' +
 
+    // 排序栏
+    '<div style="padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);">' +
+    '<div style="font-size:12px;color:#888;">排序方式</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;">' +
+    '<select id="batch-sort-by" style="background:#1a1a1a;color:#ccc;border:1px solid rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px;font-size:12px;cursor:pointer;outline:none;">' +
+    '<option value="likeCount">点赞量</option>' +
+    '<option value="favCount">收藏量</option>' +
+    '<option value="commentCount">评论量</option>' +
+    '<option value="readCount">播放量</option>' +
+    '<option value="createtime">发布时间</option>' +
+    '</select>' +
+    '<button id="batch-sort-order" style="background:#1a1a1a;color:#ccc;border:1px solid rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px;font-size:12px;cursor:pointer;outline:none;" title="切换排序顺序">↓</button>' +
+    '</div>' +
+    '</div>' +
+
     // 列表区域
-    '<div id="batch-list-container" style="overflow-y:auto;padding:12px 20px;max-height:200px;">' +
+    '<div id="batch-list-container" style="overflow-y:auto;padding:12px 20px;max-height:400px;">' +
     '<div id="batch-list" style="display:flex;flex-direction:column;gap:8px;"></div>' +
     '</div>' +
 
@@ -296,6 +373,37 @@ function __show_batch_download_ui__(videos, title) {
     document.getElementById('batch-close-icon').onclick = function () {
       __close_batch_download_ui__();
     };
+
+    // 排序方式切换
+    var sortBySelect = document.getElementById('batch-sort-by');
+    if (sortBySelect) {
+      // 设置当前选中值
+      sortBySelect.value = __wx_batch_download_manager__.sortBy;
+      sortBySelect.onchange = function () {
+        __wx_batch_download_manager__.sortBy = this.value;
+        __wx_batch_download_manager__.currentPage = 1; // 重置到第一页
+        // 对整个视频列表重新排序
+        __wx_batch_download_manager__.videos = __wx_batch_download_manager__.getSortedVideos();
+        __render_batch_video_list__();
+        __update_batch_ui__();
+      };
+    }
+
+    // 排序顺序切换
+    var sortOrderBtn = document.getElementById('batch-sort-order');
+    if (sortOrderBtn) {
+      // 设置当前按钮文字
+      sortOrderBtn.textContent = __wx_batch_download_manager__.sortOrder === 'desc' ? '↓' : '↑';
+      sortOrderBtn.onclick = function () {
+        __wx_batch_download_manager__.sortOrder = __wx_batch_download_manager__.sortOrder === 'desc' ? 'asc' : 'desc';
+        this.textContent = __wx_batch_download_manager__.sortOrder === 'desc' ? '↓' : '↑';
+        __wx_batch_download_manager__.currentPage = 1; // 重置到第一页
+        // 对整个视频列表重新排序
+        __wx_batch_download_manager__.videos = __wx_batch_download_manager__.getSortedVideos();
+        __render_batch_video_list__();
+        __update_batch_ui__();
+      };
+    }
 
     // 监听实时进度更新
     document.removeEventListener('wx_download_progress', __handle_download_progress__); // 防止重复绑定
@@ -712,6 +820,55 @@ function __render_batch_video_list__() {
 
     detailDiv.innerHTML = details.join('');
     info.appendChild(detailDiv);
+
+    // 互动数据（点赞、转发、收藏、评论）
+    var interactionData = [];
+
+    // 从 video 对象或 objectDesc 中提取互动数据
+    var likeCount = video.likeCount || (video.objectDesc && video.objectDesc.likeCount) || 0;
+    var forwardCount = video.forwardCount || (video.objectDesc && video.objectDesc.forwardCount) || 0;
+    var favCount = video.favCount || (video.objectDesc && video.objectDesc.favCount) || 0;
+    var commentCount = video.commentCount || (video.objectDesc && video.objectDesc.commentCount) || 0;
+    var readCount = video.readCount || (video.objectDesc && video.objectDesc.readCount) || 0;
+
+    // 格式化数字（超过10000显示为x.x万）
+    function formatNumber(num) {
+      if (!num || num <= 0) return null;
+      if (num >= 10000) {
+        return (num / 10000).toFixed(1) + '万';
+      }
+      return String(num);
+    }
+
+    var likeStr = formatNumber(likeCount);
+    var forwardStr = formatNumber(forwardCount);
+    var favStr = formatNumber(favCount);
+    var commentStr = formatNumber(commentCount);
+    var readStr = formatNumber(readCount);
+
+    // 构建互动数据显示
+    if (likeStr) {
+      interactionData.push('<span style="color:#07c160;">👍 ' + likeStr + '</span>');
+    }
+    if (commentStr) {
+      interactionData.push('<span style="color:#fa9d3b;">💬 ' + commentStr + '</span>');
+    }
+    if (forwardStr) {
+      interactionData.push('<span style="color:#576b95;">↗️ ' + forwardStr + '</span>');
+    }
+    if (favStr) {
+      interactionData.push('<span style="color:#ff9f43;">⭐ ' + favStr + '</span>');
+    }
+    if (readStr) {
+      interactionData.push('<span style="color:#999;">👁️ ' + readStr + '</span>');
+    }
+
+    if (interactionData.length > 0) {
+      var interactionDiv = document.createElement('div');
+      interactionDiv.style.cssText = 'display:flex;gap:10px;font-size:11px;flex-wrap:wrap;margin-top:2px;';
+      interactionDiv.innerHTML = interactionData.join('');
+      info.appendChild(interactionDiv);
+    }
 
     // 组装列表项
     item.appendChild(checkbox);

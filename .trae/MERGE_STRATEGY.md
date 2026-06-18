@@ -106,7 +106,8 @@ git push origin custom
 
 | 日期 | 文件 | 冲突内容 | 解决方案 | 备注 |
 |------|------|----------|----------|------|
-| （待填写） | | | | |
+| 2026-06-18 | `internal/database/database.go` | SQLite 驱动名 `sqlite3` 应改为 `sqlite` | 保留本地修改 | `modernc.org/sqlite` 注册名是 `sqlite`，不是 `sqlite3` |
+| 2026-06-18 | `internal/database/database_test.go` | 同上 | 同上 | 测试文件同步修改 |
 
 ---
 
@@ -187,4 +188,4 @@ git merge --abort
 
 *文档版本: 1.1*
 *创建日期: 2026-06-15*
-*最后更新: 2026-06-17*
+*最后更新: 2026-06-18*

@@ -108,6 +108,10 @@ git push origin custom
 |------|------|----------|----------|------|
 | 2026-06-18 | `internal/database/database.go` | SQLite 驱动名 `sqlite3` 应改为 `sqlite` | 保留本地修改 | `modernc.org/sqlite` 注册名是 `sqlite`，不是 `sqlite3` |
 | 2026-06-18 | `internal/database/database_test.go` | 同上 | 同上 | 测试文件同步修改 |
+| 2026-06-27 | `go.mod` | 上游删除 `glebarez/sqlite`/`gorm`/`gorilla/mux`（随 hub_server 移除），保留 `mattn/go-sqlite3`；我方需保留 `modernc.org/sqlite` 纯 Go 方案 | 保留本地：go.mod direct 区只保留 `modernc.org/sqlite`，移除 `mattn/go-sqlite3`/`gorm.io/gorm`，其余 indirect 交由 `go mod tidy` 整理 | 上游已无符号冲突根因（glebarez 删除），但我方延续纯 Go 构建策略；用户确认保留方案 A |
+| 2026-06-27 | `go.sum` | 随 go.mod 变化 | 自动合并 + `go mod tidy` | 无冲突标记 |
+| 2026-06-27 | `rsrc_windows_386.syso` / `rsrc_windows_amd64.syso` / `wx_channel.exe` | modify/delete：我方在 `9d68216` 删除构建产物，上游更新了这些二进制 | 保持删除（`git rm`） | 沿用我方「移除构建产物」决策，不接受上游二进制 |
+| 2026-06-27 | `hub_server/` 整个目录 | 上游 `828b24b chore: remove migrated hub server` 删除整个 hub_server | 接受上游删除 | 无冲突（我方未改动该目录内文件）；物理残留由 `git clean -fd` 清理 |
 
 ---
 
@@ -186,6 +190,6 @@ git merge --abort
 
 ---
 
-*文档版本: 1.1*
+*文档版本: 1.2*
 *创建日期: 2026-06-15*
-*最后更新: 2026-06-18*
+*最后更新: 2026-06-27*

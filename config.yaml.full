@@ -19,11 +19,12 @@ cert_file: SunnyRoot.cer
 
 # 是否启用云端管理功能（Hub Server 集中管理）
 # true: 启用，客户端会连接到 Hub Server，支持远程管理
-# false: 禁用，客户端独立运行，不连接 Hub Server
-cloud_enabled: true
+# false: 禁用，客户端独立运行，不连接 Hub Server（默认）
+cloud_enabled: false
 
 # Hub Server 的 WebSocket 地址
-cloud_hub_url: "ws://wx.dujulaoren.com/ws/client"
+# 仅当 cloud_enabled: true 时生效，请填写你自己的 Hub Server 地址
+cloud_hub_url: ""
 
 # 云端通信密钥（可选，用于加密通信）
 cloud_secret: ""

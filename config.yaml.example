@@ -8,10 +8,12 @@
 # === 云端管理功能 ===
 # 客户端通过 WebSocket 连接到 Hub Server
 # 用途：实时控制、状态监控、数据同步
-cloud_enabled: true
+# 默认禁用，启用后会向 Hub Server 推送浏览/下载记录
+cloud_enabled: false
 
 # Hub Server 的 WebSocket 地址
-cloud_hub_url: "ws://wx.dujulaoren.com/ws/client"
+# 仅当 cloud_enabled: true 时生效，请填写你自己的 Hub Server 地址
+cloud_hub_url: ""
 
 # 云端通信密钥（可选，用于加密通信）
 cloud_secret: ""
@@ -27,14 +29,15 @@ bind_token: ""
 # === Hub 同步配置 ===
 # 客户端通过 WebSocket 主动推送数据到 Hub Server
 # 适用于内网环境，无需公网 IP 或端口转发
+# 默认禁用，避免未经用户同意推送浏览/下载记录到第三方服务器
 hub_sync:
   # 是否启用同步功能
-  enabled: true
-  
+  enabled: false
+
   # 是否启用主动推送
-  # true: 客户端定期推送数据到 Hub（推荐）
+  # true: 客户端定期推送数据到 Hub
   # false: 禁用同步功能
-  push_enabled: true
+  push_enabled: false
   
   # 推送间隔（客户端多久推送一次数据）
   # 格式: 1m (1分钟), 5m (5分钟), 1h (1小时)

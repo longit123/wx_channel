@@ -240,8 +240,8 @@ func setDefaults() {
 	viper.SetDefault("show_log_button", false)
 	viper.SetDefault("enable_log_interception", false) // 默认禁用日志拦截以节省内存
 
-	viper.SetDefault("cloud_enabled", true) // 默认不启用云端管理
-	viper.SetDefault("cloud_hub_url", "ws://wx.dujulaoren.com/ws/client")
+	viper.SetDefault("cloud_enabled", false) // 默认禁用云端管理，避免向第三方服务器推送数据
+	viper.SetDefault("cloud_hub_url", "")     // 默认空，需用户主动配置
 	viper.SetDefault("cloud_secret", "")
 	viper.SetDefault("machine_id", GetMachineID())
 
@@ -253,8 +253,9 @@ func setDefaults() {
 	viper.SetDefault("metrics_port", 9090)
 
 	// Hub同步默认值
-	viper.SetDefault("hub_sync.enabled", true)
-	viper.SetDefault("hub_sync.push_enabled", true)
+	// 默认禁用推送，避免未经用户同意将浏览/下载记录推送到第三方服务器
+	viper.SetDefault("hub_sync.enabled", false)
+	viper.SetDefault("hub_sync.push_enabled", false)
 	viper.SetDefault("hub_sync.push_interval", 5*time.Minute)
 	viper.SetDefault("hub_sync.push_batch_size", 1000)
 
@@ -308,7 +309,10 @@ port: 2025                    # 服务端口
 download_dir: downloads       # 下载目录
 
 # === 云端管理 ===
-cloud_hub_url: ws://wx.dongzuren.com/ws/client
+# 默认禁用，避免向第三方服务器推送浏览/下载记录
+# 如需启用：cloud_enabled: true 并填写 cloud_hub_url
+cloud_enabled: false
+# cloud_hub_url: ws://your-hub.example.com/ws/client
 cloud_secret: ""
 
 # === 设备标识 ===

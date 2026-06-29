@@ -43,6 +43,8 @@ git push origin custom
 | `pkg/sunnynet/Resource/nfapi/dll/win32/nfapi.dll` | Windows 32位网络驱动DLL（从Go模块缓存复制） | 新增 |
 | `pkg/sunnynet/Resource/nfapi/dll/x64/nfapi.dll` | Windows 64位网络驱动DLL（从Go模块缓存复制） | 新增 |
 | `.trae/MERGE_STRATEGY.md` | 合并策略文档 | 新增 |
+| `internal/services/audio_extractor.go` | 音频提取服务（m4a 纯Go抽轨 / mp3 ffmpeg转码） | 新增 |
+| `internal/api/audio.go` | 音频能力查询 API（`/api/v1/audio/capabilities`） | 新增 |
 
 **说明**：上游 `.gitignore` 忽略了 `*.dll` 文件，导致源码构建时缺少这些 DLL。我们从 Go 模块缓存复制到本地，解决 Windows 源码构建问题。
 

@@ -163,6 +163,10 @@ func (c *Connector) collectLocalCapabilities() localCapabilitySummary {
 
 // Start 启动连接器
 func (c *Connector) Start() {
+	if !c.cfg.CloudEnabled {
+		utils.LogInfo("云端管理已禁用 (cloud_enabled: false)")
+		return
+	}
 	if c.cfg.CloudHubURL == "" {
 		utils.LogInfo("云端管理未启用 (未配置 cloud_hub_url)")
 		return

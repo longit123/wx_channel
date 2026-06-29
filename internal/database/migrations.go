@@ -283,6 +283,12 @@ CREATE INDEX IF NOT EXISTS idx_radar_logs_check_time ON radar_logs(check_time);
 		Description: "Add video_list column to radar_logs for per-video details",
 		Up:          `ALTER TABLE radar_logs ADD COLUMN video_list TEXT DEFAULT '';`,
 	},
+	{
+		Version:     15,
+		Description: "Add audio_path and audio_format columns to download_records for audio extraction",
+		Up: `ALTER TABLE download_records ADD COLUMN audio_path TEXT DEFAULT '';
+ALTER TABLE download_records ADD COLUMN audio_format TEXT DEFAULT '';`,
+	},
 }
 
 // runMigrations 执行所有待处理的迁移

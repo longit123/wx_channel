@@ -31,7 +31,8 @@ var errBatchPaused = errors.New("batch download paused")
 type BatchHandler struct {
 	downloadService *services.DownloadRecordService
 	settingsRepo    *database.SettingsRepository
-	gopeedService   *services.GopeedService // Injected Gopeed Service
+	gopeedService   *services.GopeedService      // Injected Gopeed Service
+	audioExtractor  *services.AudioExtractor     // 音频提取器
 	mu              sync.RWMutex
 	tasks           []BatchTask
 	running         bool
@@ -77,6 +78,11 @@ type BatchTask struct {
 	DecryptKey string `json:"decryptKey,omitempty"` // 解密密钥（数据库格式）
 	DurationMs int64  `json:"durationMs,omitempty"` // 时长毫秒（数据库格式，字段名为duration但类型是int64）
 	Size       int64  `json:"size,omitempty"`       // 大小字节（数据库格式）
+	// 音频提取选项
+	AudioMode   bool   `json:"audioMode,omitempty"`   // 是否提取音频
+	AudioFormat string `json:"audioFormat,omitempty"` // 音频格式：m4a | mp3
+	// 运行时字段
+	AudioPath    string `json:"audioPath,omitempty"` // 提取的音频文件路径（运行时填充）
 	GopeedTaskID string `json:"-"`
 	TempPath     string `json:"-"`
 	FinalPath    string `json:"-"`
@@ -149,11 +155,12 @@ func (t *BatchTask) GetCover() string {
 }
 
 // NewBatchHandler 创建批量下载处理器
-func NewBatchHandler(cfg *config.Config, gopeedService *services.GopeedService) *BatchHandler {
+func NewBatchHandler(cfg *config.Config, gopeedService *services.GopeedService, audioExtractor *services.AudioExtractor) *BatchHandler {
 	return &BatchHandler{
 		downloadService: services.NewDownloadRecordService(),
 		settingsRepo:    database.NewSettingsRepository(),
 		gopeedService:   gopeedService,
+		audioExtractor:  audioExtractor,
 		tasks:           make([]BatchTask, 0),
 	}
 }
@@ -242,6 +249,8 @@ func (h *BatchHandler) HandleBatchStart(Conn *SunnyNet.HttpConn) bool {
 		Videos          []BatchTask `json:"videos"`
 		ForceRedownload bool        `json:"forceRedownload"`
 		PageSource      string      `json:"pageSource,omitempty"` // 页面来源
+		AudioMode       bool        `json:"audioMode,omitempty"`  // 是否提取音频
+		AudioFormat     string      `json:"audioFormat,omitempty"` // 音频格式：m4a | mp3
 	}
 
 	utils.Info("📥 [批量下载] 开始解析 JSON...")
@@ -346,6 +355,8 @@ func (h *BatchHandler) HandleBatchStart(Conn *SunnyNet.HttpConn) bool {
 			IPRegion:     v.IPRegion,
 			DurationMs:   v.DurationMs,
 			Size:         v.Size,
+			AudioMode:    req.AudioMode,
+			AudioFormat:  req.AudioFormat,
 		}
 	}
 	h.running = true
@@ -796,6 +807,22 @@ func (h *BatchHandler) downloadVideoOnce(ctx context.Context, task *BatchTask, d
 	task.TempPath = ""
 	task.FinalPath = finalPath
 
+	// 音频提取（如果启用）
+	if task.AudioMode && h.audioExtractor != nil {
+		audioFormat := task.AudioFormat
+		if audioFormat == "" {
+			audioFormat = services.AudioFormatM4A
+		}
+		audioPath, err := h.audioExtractor.Extract(finalPath, filepath.Dir(finalPath), audioFormat)
+		if err != nil {
+			utils.Warn("🎵 [批量下载] 音频提取失败（视频已保留）: %v", err)
+		} else {
+			task.AudioPath = audioPath
+			task.AudioFormat = audioFormat
+			utils.Info("🎵 [批量下载] 音频提取成功: %s", filepath.Base(audioPath))
+		}
+	}
+
 	return finalPath, nil
 }
 
@@ -879,6 +906,8 @@ func (h *BatchHandler) saveDownloadRecord(task *BatchTask, filePath string, stat
 		Resolution:   resolution,
 		Status:       status,
 		DownloadTime: time.Now(),
+		AudioPath:    task.AudioPath,
+		AudioFormat:  task.AudioFormat,
 	}
 
 	// 保存到数据库

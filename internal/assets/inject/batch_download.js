@@ -4,6 +4,9 @@
  */
 console.log('[batch_download.js] 加载通用批量下载模块');
 
+// 音频提取能力缓存（启动时从后端查询）
+window.__wx_audio_caps__ = { ffmpegAvailable: false, formats: ['m4a'] };
+
 // ==================== 通用批量下载管理器 ====================
 window.__wx_batch_download_manager__ = {
   videos: [], // 当前视频列表
@@ -13,7 +16,6 @@ window.__wx_batch_download_manager__ = {
   maxItems: 100000, // Gopeed接管后取消限制 (原300)
   isVisible: false,
   title: '视频列表',
-  isDownloading: false, // 是否正在下载
   isDownloading: false, // 是否正在下载
   stopSignal: false, // 取消下载信号
   forceRedownload: false, // 强制重新下载
@@ -262,6 +264,17 @@ function __show_batch_download_ui__(videos, title) {
     '<span id="batch-selected-count" style="font-size:13px;color:#07c160;">已选 0 个</span>' +
     '</div>' +
 
+    // 同时下载音频选项
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+    '<label style="display:flex;align-items:center;cursor:pointer;font-size:13px;color:#999;user-select:none;">' +
+    '<input type="checkbox" id="batch-audio-mode" checked style="margin-right:6px;cursor:pointer;" />' +
+    '<span>同时下载音频</span>' +
+    '</label>' +
+    '<select id="batch-audio-format" style="background:rgba(255,255,255,0.08);color:#999;border:1px solid rgba(255,255,255,0.12);padding:4px 8px;border-radius:4px;font-size:13px;cursor:pointer;display:none;">' +
+    '<option value="m4a">m4a</option>' +
+    '</select>' +
+    '</div>' +
+
     // 下载和取消按钮容器
     '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
     '<button id="batch-download-btn" style="flex:1;background:#07c160;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;transition:background 0.2s;">开始下载</button>' +
@@ -294,6 +307,20 @@ function __show_batch_download_ui__(videos, title) {
 
   document.body.appendChild(ui);
 
+  // 查询音频提取能力
+  fetch('/api/v1/audio/capabilities')
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      var data = res.data || res;
+      if (data && data.formats) {
+        __wx_audio_caps__ = data;
+        if (typeof __update_audio_format_options__ === 'function') {
+          __update_audio_format_options__();
+        }
+      }
+    })
+    .catch(function (e) { console.error('[批量下载] 查询音频能力失败:', e); });
+
   __wx_batch_download_manager__.isVisible = true;
 
   // 渲染列表
@@ -324,8 +351,34 @@ function __show_batch_download_ui__(videos, title) {
 
     // 下载
     document.getElementById('batch-download-btn').onclick = function () {
-      __batch_download_selected__();
+      var audioCheckbox = document.getElementById('batch-audio-mode');
+      var formatSelect = document.getElementById('batch-audio-format');
+      var audioMode = audioCheckbox ? audioCheckbox.checked : false;
+      var audioFormat = formatSelect && formatSelect.value ? formatSelect.value : 'm4a';
+      __batch_download_selected__({ audioMode: audioMode, audioFormat: audioFormat });
     };
+
+    // 更新音频格式选项
+    window.__update_audio_format_options__ = function () {
+      var select = document.getElementById('batch-audio-format');
+      if (!select) return;
+      select.innerHTML = '';
+      var formats = __wx_audio_caps__.formats || ['m4a'];
+      // 有 ffmpeg 时优先 mp3（兼容性更好），否则 m4a
+      if (__wx_audio_caps__.ffmpegAvailable && formats.indexOf('mp3') >= 0) {
+        formats = ['mp3', 'm4a'];
+      }
+      for (var i = 0; i < formats.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = formats[i];
+        opt.textContent = formats[i];
+        select.appendChild(opt);
+      }
+      // 多于一种格式时才显示下拉
+      select.style.display = formats.length > 1 ? 'block' : 'none';
+    };
+    // 定义后立即调用一次，应用已缓存的能力数据（解决 fetch 响应早于 setTimeout 的时序问题）
+    __update_audio_format_options__();
 
     // 取消下载
     document.getElementById('batch-cancel-btn').onclick = function () {
@@ -931,7 +984,10 @@ function __format_batch_size_mb__(bytes) {
 }
 
 // ==================== 批量下载 ====================
-async function __batch_download_selected__() {
+async function __batch_download_selected__(opts) {
+  opts = opts || {};
+  var audioMode = opts.audioMode || false;
+  var audioFormat = opts.audioFormat || 'm4a';
   var selectedVideos = __wx_batch_download_manager__.getSelectedVideos();
 
   if (selectedVideos.length === 0) {
@@ -975,20 +1031,34 @@ async function __batch_download_selected__() {
   __wx_batch_download_manager__.isDownloading = true;
   __wx_batch_download_manager__.stopSignal = false;
 
-  __wx_log({ msg: '🚀 开始批量下载 ' + formattedVideos.length + ' 个视频（后端并发）...' });
+  var modeText = audioMode ? '（视频+音频 ' + audioFormat + '）' : '';
+  __wx_log({ msg: '🚀 开始批量下载 ' + formattedVideos.length + ' 个视频（后端并发）' + modeText + '...' });
 
   // 显示进度和取消按钮
   var progressDiv = document.getElementById('batch-download-progress');
   var progressText = document.getElementById('batch-progress-text');
   var progressBar = document.getElementById('batch-progress-bar');
   var downloadBtn = document.getElementById('batch-download-btn');
+  var audioCheckbox = document.getElementById('batch-audio-mode');
+  var formatSelect = document.getElementById('batch-audio-format');
   var cancelBtn = document.getElementById('batch-cancel-btn');
 
-  if (progressDiv) progressDiv.style.display = 'block';
+  if (progressDiv) {
+    progressDiv.style.display = 'block';
+    console.log('[批量下载] 进度条已显示');
+  } else {
+    console.error('[批量下载] 进度条元素未找到!');
+  }
   if (downloadBtn) {
     downloadBtn.textContent = '下载中...';
     downloadBtn.style.opacity = '0.7';
     downloadBtn.style.cursor = 'not-allowed';
+    downloadBtn.disabled = true;
+  }
+  if (audioCheckbox) audioCheckbox.disabled = true;
+  if (formatSelect) {
+    formatSelect.style.opacity = '0.5';
+    formatSelect.disabled = true;
   }
   if (cancelBtn) {
     cancelBtn.style.display = 'block';
@@ -1040,7 +1110,9 @@ async function __batch_download_selected__() {
       headers: __wx_channels_batch_api_headers__(),
       body: JSON.stringify({
         videos: batchVideos,
-        forceRedownload: __wx_batch_download_manager__.forceRedownload
+        forceRedownload: __wx_batch_download_manager__.forceRedownload,
+        audioMode: audioMode,
+        audioFormat: audioFormat
       })
     });
 
@@ -1197,6 +1269,8 @@ function __reset_batch_download_ui__() {
   __wx_batch_download_manager__.stopSignal = false;
 
   var downloadBtn = document.getElementById('batch-download-btn');
+  var audioCheckbox = document.getElementById('batch-audio-mode');
+  var formatSelect = document.getElementById('batch-audio-format');
   var cancelBtn = document.getElementById('batch-cancel-btn');
   var progressDiv = document.getElementById('batch-download-progress');
   var progressBar = document.getElementById('batch-progress-bar');
@@ -1205,6 +1279,12 @@ function __reset_batch_download_ui__() {
     downloadBtn.textContent = '开始下载';
     downloadBtn.style.opacity = '1';
     downloadBtn.style.cursor = 'pointer';
+    downloadBtn.disabled = false;
+  }
+  if (audioCheckbox) audioCheckbox.disabled = false;
+  if (formatSelect) {
+    formatSelect.style.opacity = '1';
+    formatSelect.disabled = false;
   }
   if (cancelBtn) {
     cancelBtn.style.display = 'none';

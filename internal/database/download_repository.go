@@ -28,8 +28,9 @@ func (r *DownloadRecordRepository) Create(record *DownloadRecord) error {
 			id, video_id, title, author, cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		record.ID, record.VideoID, record.Title, record.Author, record.CoverURL,
@@ -37,6 +38,7 @@ func (r *DownloadRecordRepository) Create(record *DownloadRecord) error {
 		record.Resolution, record.Status, record.DownloadTime,
 		record.ErrorMessage,
 		record.LikeCount, record.CommentCount, record.ForwardCount, record.FavCount,
+		record.AudioPath, record.AudioFormat,
 		record.CreatedAt, record.UpdatedAt,
 	)
 	if err != nil {
@@ -51,6 +53,7 @@ func (r *DownloadRecordRepository) GetByID(id string) (*DownloadRecord, error) {
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records WHERE id = ?
 	`
@@ -84,6 +87,7 @@ func (r *DownloadRecordRepository) GetByVideoID(videoID string) (*DownloadRecord
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records WHERE video_id = ? LIMIT 1
 	`
@@ -119,13 +123,14 @@ func (r *DownloadRecordRepository) Update(record *DownloadRecord) error {
 		UPDATE download_records SET
 			video_id = ?, title = ?, author = ?, cover_url = ?, duration = ?, file_size = ?,
 			file_path = ?, format = ?, resolution = ?, status = ?,
-			download_time = ?, error_message = ?, updated_at = ?
+			download_time = ?, error_message = ?, audio_path = ?, audio_format = ?, updated_at = ?
 		WHERE id = ?
 	`
 	result, err := r.db.Exec(query,
 		record.VideoID, record.Title, record.Author, record.CoverURL, record.Duration,
 		record.FileSize, record.FilePath, record.Format, record.Resolution,
 		record.Status, record.DownloadTime, record.ErrorMessage,
+		record.AudioPath, record.AudioFormat,
 		record.UpdatedAt, record.ID,
 	)
 	if err != nil {
@@ -253,6 +258,7 @@ func (r *DownloadRecordRepository) List(params *FilterParams) (*PagedResult[Down
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records
 		%s
@@ -277,6 +283,7 @@ func (r *DownloadRecordRepository) List(params *FilterParams) (*PagedResult[Down
 			&resolution, &record.Status, &record.DownloadTime,
 			&errorMessage,
 			&record.LikeCount, &record.CommentCount, &record.ForwardCount, &record.FavCount,
+			&record.AudioPath, &record.AudioFormat,
 			&record.CreatedAt, &record.UpdatedAt,
 		)
 		if err != nil {
@@ -341,6 +348,7 @@ func (r *DownloadRecordRepository) GetRecent(limit int) ([]DownloadRecord, error
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records
 		ORDER BY download_time DESC
@@ -363,6 +371,7 @@ func (r *DownloadRecordRepository) GetRecent(limit int) ([]DownloadRecord, error
 			&resolution, &record.Status, &record.DownloadTime,
 			&errorMessage,
 			&record.LikeCount, &record.CommentCount, &record.ForwardCount, &record.FavCount,
+			&record.AudioPath, &record.AudioFormat,
 			&record.CreatedAt, &record.UpdatedAt,
 		)
 		if err != nil {
@@ -398,6 +407,7 @@ func (r *DownloadRecordRepository) GetAll() ([]DownloadRecord, error) {
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records
 		ORDER BY download_time DESC
@@ -419,6 +429,7 @@ func (r *DownloadRecordRepository) GetAll() ([]DownloadRecord, error) {
 			&resolution, &record.Status, &record.DownloadTime,
 			&errorMessage,
 			&record.LikeCount, &record.CommentCount, &record.ForwardCount, &record.FavCount,
+			&record.AudioPath, &record.AudioFormat,
 			&record.CreatedAt, &record.UpdatedAt,
 		)
 		if err != nil {
@@ -456,6 +467,7 @@ func (r *DownloadRecordRepository) GetByIDs(ids []string) ([]DownloadRecord, err
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records
 		WHERE id IN (%s)
@@ -478,6 +490,7 @@ func (r *DownloadRecordRepository) GetByIDs(ids []string) ([]DownloadRecord, err
 			&resolution, &record.Status, &record.DownloadTime,
 			&errorMessage,
 			&record.LikeCount, &record.CommentCount, &record.ForwardCount, &record.FavCount,
+			&record.AudioPath, &record.AudioFormat,
 			&record.CreatedAt, &record.UpdatedAt,
 		)
 		if err != nil {
@@ -552,6 +565,7 @@ func (r *DownloadRecordRepository) GetRecordsSince(since time.Time, limit int) (
 		SELECT id, video_id, title, author, COALESCE(cover_url, '') as cover_url, duration, file_size, file_path,
 			format, resolution, status, download_time, error_message,
 			like_count, comment_count, forward_count, fav_count,
+			audio_path, audio_format,
 			created_at, updated_at
 		FROM download_records
 		WHERE updated_at > ?
@@ -575,6 +589,7 @@ func (r *DownloadRecordRepository) GetRecordsSince(since time.Time, limit int) (
 			&resolution, &record.Status, &record.DownloadTime,
 			&errorMessage,
 			&record.LikeCount, &record.CommentCount, &record.ForwardCount, &record.FavCount,
+			&record.AudioPath, &record.AudioFormat,
 			&record.CreatedAt, &record.UpdatedAt,
 		)
 		if err != nil {

@@ -18,6 +18,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
+	github.com/yapingcat/gomedia v0.0.0-20240906162731-17feea57090c
 	modernc.org/sqlite v1.33.1
 )
 

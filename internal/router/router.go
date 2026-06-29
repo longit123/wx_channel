@@ -134,7 +134,8 @@ func AuthMiddleware(secretToken string) func(http.Handler) http.Handler {
 
 func isPublicAPIPath(path string) bool {
 	switch path {
-	case "/api/health", "/api/console/verify-token", "/api/system/health", "/api/v1/system/health":
+	case "/api/health", "/api/console/verify-token", "/api/system/health", "/api/v1/system/health",
+		"/api/v1/audio/capabilities":
 		return true
 	default:
 		return false

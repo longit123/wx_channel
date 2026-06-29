@@ -62,6 +62,7 @@ type App struct {
 	SearchService  *api.SearchService
 	RadarService   *services.RadarService  // 自动轮询雷达
 	GopeedService  *services.GopeedService // Add GopeedService
+	AudioExtractor *services.AudioExtractor // 音频提取器
 	CloudConnector *cloud.Connector
 
 	// 路由器
@@ -197,7 +198,11 @@ func (app *App) Run() {
 	app.ConsoleAPIHandler = handlers.NewConsoleAPIHandler(app.Cfg, app.WSHub, app.RadarService)
 
 	// 初始化新的 API 路由器
-	app.APIRouter = router.NewAPIRouter(app.Cfg, app.WSHub, app.Sunny)
+	// 初始化音频提取器（单例，启动时探测 ffmpeg）
+	app.AudioExtractor = services.NewAudioExtractor()
+
+	// 初始化 API 路由器（注入 AudioExtractor）
+	app.APIRouter = router.NewAPIRouter(app.Cfg, app.WSHub, app.Sunny, app.AudioExtractor)
 
 	// 初始化静态文件处理器
 	app.StaticFileHandler = handlers.NewStaticFileHandler()
@@ -207,8 +212,8 @@ func (app *App) Run() {
 	app.UploadHandler = handlers.NewUploadHandler(app.Cfg, app.WSHub, app.GopeedService)
 	app.RecordHandler = handlers.NewRecordHandler(app.Cfg)
 
-	// BatchHandler (Injecting GopeedService)
-	app.BatchHandler = handlers.NewBatchHandler(app.Cfg, app.GopeedService)
+	// BatchHandler (Injecting GopeedService and AudioExtractor)
+	app.BatchHandler = handlers.NewBatchHandler(app.Cfg, app.GopeedService, app.AudioExtractor)
 
 	// ScriptHandler
 	app.ScriptHandler = handlers.NewScriptHandler(

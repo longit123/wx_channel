@@ -6,6 +6,7 @@ import (
 	"wx_channel/internal/api"
 	"wx_channel/internal/config"
 	"wx_channel/internal/handlers"
+	"wx_channel/internal/services"
 	"wx_channel/internal/websocket"
 
 	"strings"
@@ -25,6 +26,7 @@ type APIRouter struct {
 	certificateService *api.CertificateService
 	versionService     *api.VersionAPI
 	radarAPI           *api.RadarServiceAPI
+	audioAPI           *api.AudioAPI
 	allowedOrigins     []string
 	secretToken        string
 }
@@ -52,7 +54,7 @@ func (r *APIRouter) Handle(Conn *SunnyNet.HttpConn) bool {
 }
 
 // NewAPIRouter 创建 API 路由器
-func NewAPIRouter(cfg *config.Config, hub *websocket.Hub, sunny *SunnyNet.Sunny) *APIRouter {
+func NewAPIRouter(cfg *config.Config, hub *websocket.Hub, sunny *SunnyNet.Sunny, audioExtractor *services.AudioExtractor) *APIRouter {
 	mux := http.NewServeMux()
 
 	router := &APIRouter{
@@ -66,6 +68,7 @@ func NewAPIRouter(cfg *config.Config, hub *websocket.Hub, sunny *SunnyNet.Sunny)
 		certificateService: api.NewCertificateService(sunny),
 		versionService:     api.NewVersionAPI(),
 		radarAPI:           api.NewRadarServiceAPI(),
+		audioAPI:           api.NewAudioAPI(audioExtractor),
 		allowedOrigins:     cfg.AllowedOrigins,
 		secretToken:        cfg.SecretToken,
 	}
@@ -140,6 +143,9 @@ func (r *APIRouter) registerRoutes() {
 
 	// Radar API
 	r.radarAPI.RegisterRoutes(r.mux)
+
+	// 音频提取 API
+	r.audioAPI.RegisterRoutes(r.mux)
 }
 
 // Handler 返回带中间件的 HTTP Handler

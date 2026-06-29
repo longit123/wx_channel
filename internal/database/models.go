@@ -46,6 +46,8 @@ type DownloadRecord struct {
 	CommentCount int64     `json:"commentCount"`
 	ForwardCount int64     `json:"forwardCount"`
 	FavCount     int64     `json:"favCount"`
+	AudioPath    string    `json:"audioPath"`   // 提取的音频文件路径（空表示未提取）
+	AudioFormat  string    `json:"audioFormat"` // 音频格式：m4a | mp3
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }

@@ -55,13 +55,27 @@ git push origin custom
 | 文件路径 | 修改内容摘要 | 冲突策略 | 状态 |
 |----------|--------------|----------|------|
 | `internal/database/database.go` | 将 SQLite 驱动从 `mattn/go-sqlite3` 改为 `modernc.org/sqlite`（纯Go实现） | **保留本地** | 已修改 |
-| `go.mod` | 移除 `mattn/go-sqlite3` 依赖，避免与 `glebarez/sqlite` 符号冲突 | **人工确认** | 已修改 |
+| `go.mod` | 移除 `mattn/go-sqlite3`（避免符号冲突）；新增 `gomedia` direct 依赖（音频抽轨） | **人工确认** | 已修改 |
 | `go.sum` | 随 go.mod 变化自动更新 | **自动处理** | 已修改 |
+| `internal/app/app.go` | 创建 AudioExtractor 单例，注入 BatchHandler 和 APIRouter | **保留本地** | 已修改 |
+| `internal/handlers/batch.go` | BatchTask 加音频字段，下载完成后提取音频钩子 | **保留本地** | 已修改 |
+| `internal/router/api_routes.go` | 注册音频能力查询 API 路由 | **保留本地** | 已修改 |
+| `internal/router/router.go` | `isPublicAPIPath` 白名单加 `/api/v1/audio/capabilities` | **保留本地** | 已修改 |
+| `internal/database/models.go` | DownloadRecord 加 `AudioPath`/`AudioFormat` 字段 | **保留本地** | 已修改 |
+| `internal/database/migrations.go` | v15 migration 加音频字段 | **保留本地** | 已修改 |
+| `internal/database/download_repository.go` | SQL 读写音频字段 | **保留本地** | 已修改 |
+| `internal/assets/inject/batch_download.js` | 批量下载面板加「同时下载音频」复选框与格式下拉 | **保留本地** | 已修改 |
+| `internal/config/config.go` | `cloud_enabled`/`hub_sync` 默认改为 false，避免向第三方推送数据 | **保留本地** | 已修改 |
+| `internal/cloud/connector.go` | `cloud_enabled` 为 false 时 Start 早返回 | **保留本地** | 已修改 |
+| `config.yaml.example` | 云端管理默认禁用示例 | **保留本地** | 已修改 |
+| `config.yaml.full` | 云端管理默认禁用完整示例 | **保留本地** | 已修改 |
 
 **说明**：
 - 上游同时使用了 `mattn/go-sqlite3`（CGO）和 `glebarez/sqlite`（纯Go），在 Windows MinGW 环境下会产生 SQLite 符号冲突
 - 我们统一使用纯 Go SQLite 驱动，解决 Windows 源码构建问题
 - 如果上游更新 go.mod，需要人工确认是否保留我们的修改
+- 音频提取功能（2026-06-29 新增）：m4a 用纯 Go gomedia 抽轨或 ffmpeg copy，mp3 需 ffmpeg 转码；前端通过 `/api/v1/audio/capabilities` 查询 ffmpeg 是否可用以决定默认格式
+- 云端默认禁用（2026-06-29）：上游默认启用云端推送，我方改为默认关闭，避免未经用户同意向第三方服务器推送浏览/下载记录
 
 ### 3.3 配置文件（自动保留本地）
 
@@ -192,6 +206,6 @@ git merge --abort
 
 ---
 
-*文档版本: 1.2*
+*文档版本: 1.3*
 *创建日期: 2026-06-15*
-*最后更新: 2026-06-27*
+*最后更新: 2026-06-29*
